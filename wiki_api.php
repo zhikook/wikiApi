@@ -43,11 +43,11 @@ require_once __DIR__ . '/wiki_request.php';
          }else{
              $login_vars['lgtoken'] = $user.getUserToken();
          }
-         $jsonResult = $wikiRequest->post($action,$login_vars);
+         $request = $wikiRequest->post($action,$login_vars);
          
          //解析JSON
          $result = Array();
-         $results = json_decode($jsonResult,true);
+         $results = json_decode($request,true);
          
          if($results['login']['result']=="success"){
               //解析JSON
@@ -74,7 +74,7 @@ require_once __DIR__ . '/wiki_request.php';
      public function unlogin($user){
          $action = "logout";
          $login_vars['lgname'] = $user.getUserName();  
-         $jsonResult= $wikiRequest->execute($action,$login_vars);
+         $request= $wikiRequest->execute($action,$login_vars);
          
          //解析JSON
          
@@ -90,9 +90,9 @@ require_once __DIR__ . '/wiki_request.php';
          }else{
              $login_vars['lgtoken'] = $user.getUserToken();
          }     
-         $jsonResult = $wikiRequest->execute($action,$login_vars);        
+         $request = $wikiRequest->execute($action,$login_vars);        
          
-         $results = json_decode($jsonResult,true);
+         $results = json_decode($request,true);
          if($results['login']['result']=="success"){
               //解析JSON
          	$arr['lguserid'] = $results['login']['lguserid'];
@@ -109,21 +109,19 @@ require_once __DIR__ . '/wiki_request.php';
      }
      
      public function getUserList($limit){
-         $users;
-         $jsonData;
-         
          $action = 'query';
          
          if($limit){
-            $jsonData  = $wikiRequest->execute($action,$limit);
+            $request  = $wikiRequest->execute($action,$limit);
          }else{
-            $jsonData = $wikiRequest->execute($action);
+            $request = $wikiRequest->execute($action);
          }
+         $result = json_decode($request,true);
          
          //map to array object
-         $users=$mapper->mapArray($jsonData,new ArrayObject(),'WikiUser');
+         $users=$mapper->mapArray($result,new ArrayObject(),'WikiUser');
          
-         return $userArray;
+         return $users;
          
      }
      
@@ -138,12 +136,12 @@ require_once __DIR__ . '/wiki_request.php';
          $login_vars['email'] = $user.getUserEmail();
          $login_vars['realname'] = $user.getUserRealName();
          
-         $result  = $wikiRequest->execute($action);
-		 $jsonData = json_decode($result,true);
+         $request  = $wikiRequest->execute($action);
+		 $result = json_decode($request,true);
 		 
          if($jsonData['result']){
-             $user->setUserToken($jsonData['token']);
-             $user->setUserId($jsonData['userid']);
+             $user->setUserToken($result['token']);
+             $user->setUserId($result['userid']);
              return true;
          }else{
              return false;
@@ -157,24 +155,23 @@ require_once __DIR__ . '/wiki_request.php';
       **/
      public function getPages($titles,$prop){
          $action = "query";
-         $jsonData;
          
          if($titles){
-             $results = $wikiRequest->execute($action,$titles);
+             $request = $wikiRequest->execute($action,$titles);
              if($prop){
                 $prop ="info";
-                $results = $wikiRequest->execute($action,$titles,$prop);     
+                $request = $wikiRequest->execute($action,$titles,$prop);     
              }
          }
          
-         $jsonData = json_decode($results);
+         $result = json_decode($request);
          
-         if($results){
-             if(is_array($jsonData)){
-                 return  $pages = $mapper->map($jsonData,new ArrayObject(),'WikiPage');
+         if($request){
+             if(is_array($result)){
+                 return  $pages = $mapper->map($result,new ArrayObject(),'WikiPage');
                
              }else{
-                 return $page = $mapper->map($json, new WikiPage());
+                 return $page = $mapper->map($result, new WikiPage());
                 
              }
          }else{
@@ -189,9 +186,11 @@ require_once __DIR__ . '/wiki_request.php';
          $action = "query";
          $pages;
                 
-         $jsonData = $wikiRequest->execute($action,$limit);
-         if($jsonData){
-                $pages=$mapper->mapArray($jsonData,new ArrayObject(),'WikiPage');
+         $request = $wikiRequest->execute($action,$limit);
+         $result = json_decode($request,true);
+         
+         if($result){
+                $pages=$mapper->mapArray($result,new ArrayObject(),'WikiPage');
          }
          return $pages;
      }
@@ -206,13 +205,15 @@ require_once __DIR__ . '/wiki_request.php';
         $action = "query";
         $prop = "extracts";
         $extracts;
-        $jsonData = $wikiRequest->execute($action,$exchars,$titles,$prop);    
-        if($jsonData){
-            $extracts=$mapper->mapArray($jsonData,new ArrayObject(),'WikiPage');
+        
+        $request = $wikiRequest->execute($action,$exchars,$titles,$prop); 
+        $result = json_decode($request);  
+        
+        if($result){
+            $extracts=$mapper->mapArray($result,new ArrayObject(),'WikiPage');
         }
         
         return $extracts;
-             
      }
         
     //=================================================================================
@@ -223,15 +224,18 @@ require_once __DIR__ . '/wiki_request.php';
      public function setImages($pages,$titles){
          $action = "query";
          $prop = "imageinfo";
-         $images;
-         $jsonData = $wikiRequest->execute($action,$titles,$prop);
-         if($jsonData){
-            $result=$mapper->mapArray($jsonData,new ArrayObject(),'WikiPage');
-         }
-                
-         $result->pageid;
-         $pages[]->setImages($result->$images);
+         $pages;
          
+         $request = $wikiRequest->execute($action,$titles,$prop);
+         $result = json_decode($request);
+         
+         //遍历
+         while ($key = key($result)) {
+         	$json_imageinfo = json_decode($result[page][imageinfo]);
+			$image = $mapper->mapArray($json_imageinfo,new ArrayObject(),'WikiImage');
+			$pages[$key]->setImages($image);
+			next($result);
+		 }
          return $pages;
      }
     
