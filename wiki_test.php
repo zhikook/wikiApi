@@ -16,30 +16,30 @@ require_once __DIR__ . '/wiki_api.php';
     
     //=================================================================
     function get_page($title){
-        
-        $page = $wikiApi->getPage($title);  
-        return $page;    
-        
+        $page = $wikiApi->getPages($title);  
+        return $page;
     }
     
     function get_recent_pages($limit){
-        
-        $page = $wikiApi->getPageList($limit);      
-        
+        $page = $wikiApi->getPages($limit);      
+        return $pages;
     }
     
     function get_recent_pages($cates,$limit){
-        
-        $page = $wikiApi->getPageList($cates,$limit);      
-        
+        $pages = $wikiApi->getPages($cates,$limit);      
+        return $pages;
     }
     
     function get_page_image($title){
-        $pageimage = $wikiApi->getPageImage($title); 
+       	$pages = $wikiApi-> getPages($title);
+    	$pageimages= $wikiApi->setImages($pages);
+    	return $pageimages; 
     }
     
     function get_page_thumb($title){
-        $pageimage = $wikiApi->getPageImage($title);         
+    	$pages = $wikiApi-> getPages($title);
+    	$pagethumb = $wikiApi->setThumbnail($pages);
+    	return $pagethumb;
     }
     
     //=================================================================
