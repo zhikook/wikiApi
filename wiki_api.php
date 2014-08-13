@@ -57,7 +57,7 @@ require_once __DIR__ . '/wiki_request.php';
          	$arr['sessionid'] = $results['login']['sessionid'];
          	
          	$user->setFromArray($arr); 
-            return true;
+            return $user;
          }else{
              return false;
          }
@@ -76,13 +76,15 @@ require_once __DIR__ . '/wiki_request.php';
          $login_vars['lgname'] = $user.getUserName();  
          $request= $wikiRequest->execute($action,$login_vars);
          
-         //解析JSON
-         
-         return $jsonResult;  
+         return $request;  
      }
      
      public function checkToken($user){
          $action = "login";
+         
+         if($user.getUserToken()){
+         	
+         }
          $login_vars['lgname'] = $user.getUserName();
          
          if($psw){
@@ -130,31 +132,51 @@ require_once __DIR__ . '/wiki_request.php';
       */
      public function createAccount($user) {
          $action = "createaccount";
-         $jsonData ;
          
          $login_vars['lgname'] = $user.getUserName();
          $login_vars['email'] = $user.getUserEmail();
          $login_vars['realname'] = $user.getUserRealName();
          
-         $request  = $wikiRequest->execute($action);
+         $request  = $wikiRequest->post($action,$login_vars); 
 		 $result = json_decode($request,true);
 		 
-         if($jsonData['result']){
-             $user->setUserToken($result['token']);
-             $user->setUserId($result['userid']);
-             return true;
-         }else{
-             return false;
-         }
-     
+		 if($result['token']&&$result['result']='ndtoken'){
+		 	$login_vars['token'] = $result['token'];
+		 	$request  = $wikiRequest->post($action,$login_vars);
+		 	$result = json_decode($request,true);
+		  	if($result['result']=='success'){
+             	$user->setUserToken($result['token']);
+             	$user->setUserId($result['userid']);
+             	return $user;
+         	}
+         	//if network never work,please request try.
+         	
+		 }
+		 
+		 return false;     
      }
      //======================================================================
+     
+     public function getPageContent($titles){
+     	$action = "query";
+     	$prop = "revisions";
+        $rvprop = "content";
+        
+        if($titles){
+        	$request = $wikiRequest->execute($action,$titles,$prop,$rvprop);
+        	$result = json_decode($request);
+        	
+        	echo $result;
+        }
+     }
      
      /**
       * Page
       **/
-     public function getPages($titles,$prop){
+     public function getPageSummary($titles){
          $action = "query";
+         $prop = "info";
+       
          
          if($titles){
              $request = $wikiRequest->execute($action,$titles);
@@ -172,7 +194,6 @@ require_once __DIR__ . '/wiki_request.php';
                
              }else{
                  return $page = $mapper->map($result, new WikiPage());
-                
              }
          }else{
          	return false;
@@ -204,10 +225,11 @@ require_once __DIR__ . '/wiki_request.php';
      public function getPagesExtracts($exchars,$titles){
         $action = "query";
         $prop = "extracts";
-        $extracts;
         
         $request = $wikiRequest->execute($action,$exchars,$titles,$prop); 
-        $result = json_decode($request);  
+        $result = json_decode($request); 
+        
+         
         
         if($result){
             $extracts=$mapper->mapArray($result,new ArrayObject(),'WikiPage');
@@ -240,21 +262,38 @@ require_once __DIR__ . '/wiki_request.php';
      }
     
      
+    /**
+     * 
+     */
     public function setThumbnail($pages){
         $thumbnail;
         
-        $images = $pages->getPageImage();
+        $images ;
         
         $action = "query";
         $prop = "pageimages";
-        $titles = $pages->getTitle();
-                
-        $jsonData = $wikiRequest->execute($action,$titles,$prop);
-        if($jsonData){
-            $thumbnail=$mapper->mapArray($jsonData,new ArrayObject(),'Thumbnail');
+        
+        for ($i=0; $i < count($pages); $i+=1) {
+        	$titles .= $pages[i]->getTitle();
+        	$images[i] = $pages[i]->getPageImage();
+        	if(!$images[i]){
+        		$pages[i]->setImage();
+        	}
         }
+        
+        $request = $wikiRequest->execute($action,$titles,$prop);
+        $result = json_decode($request);
+        
+        for ($i=0; $i < count($result); $i+=1) {
+        	$thumbnailData = $result[page][thumbnail];
+        
+        	if($thumbnailData){
+            	$thumbnail=$mapper->mapArray($thumbnailData,new ArrayObject(),'Thumbnail');
+        	}
 
-        $image->setThumbnail();  
+        	$image->setThumbnail();  
+        }
+       
     }
      /**
       * Upload File
